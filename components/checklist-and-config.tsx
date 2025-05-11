@@ -42,7 +42,7 @@ export default function ChecklistAndConfig({
 
   const [allChecksPassed, setAllChecksPassed] = useState(false);
   const [webhookLoading, setWebhookLoading] = useState(false);
-  const [ngrokLoading, setNgrokLoading] = useState(false);
+  const [backendLoading, setbackendLoading] = useState(false);
 
   const appendedTwimlUrl = publicUrl ? `${publicUrl}/twiml` : "";
   const isWebhookMismatch =
@@ -125,9 +125,9 @@ export default function ChecklistAndConfig({
     }
   };
 
-  const checkNgrok = async () => {
+  const checkBackend= async () => {
     if (!localServerUp || !publicUrl) return;
-    setNgrokLoading(true);
+    setbackendLoading(true);
     let success = false;
     for (let i = 0; i < 5; i++) {
       try {
@@ -147,7 +147,7 @@ export default function ChecklistAndConfig({
     if (!success) {
       setPublicUrlAccessible(false);
     }
-    setNgrokLoading(false);
+    setbackendLoading(false);
   };
 
   const checklist = useMemo(() => {
@@ -218,9 +218,9 @@ export default function ChecklistAndConfig({
         field: null,
       },
       {
-        label: "Start ngrok",
+        label: "Start backend",
         done: publicUrlAccessible,
-        description: "Then set ngrok URL in websocket-server/.env",
+        description: "Then set backend URL in websocket-server/.env",
         field: (
           <div className="flex items-center gap-2 w-full">
             <div className="flex-1">
@@ -229,14 +229,14 @@ export default function ChecklistAndConfig({
             <div className="flex-1">
               <Button
                 variant="outline"
-                onClick={checkNgrok}
-                disabled={ngrokLoading || !localServerUp || !publicUrl}
+                onClick={checkBackend}
+                disabled={backendLoading || !localServerUp || !publicUrl}
                 className="w-full"
               >
-                {ngrokLoading ? (
+                {backendLoading ? (
                   <Loader2 className="mr-2 h-4 animate-spin" />
                 ) : (
-                  "Check ngrok"
+                  "Check backend"
                 )}
               </Button>
             </div>
@@ -280,7 +280,7 @@ export default function ChecklistAndConfig({
     isWebhookMismatch,
     appendedTwimlUrl,
     webhookLoading,
-    ngrokLoading,
+    backendLoading,
     setSelectedPhoneNumber,
   ]);
 
@@ -290,7 +290,7 @@ export default function ChecklistAndConfig({
 
   useEffect(() => {
     if (!ready) {
-      checkNgrok();
+      checkBackend();
     }
   }, [localServerUp, ready]);
 
