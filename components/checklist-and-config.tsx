@@ -77,19 +77,20 @@ export default function ChecklistAndConfig({
         // 3. Check local server & public URL
         let foundPublicUrl = "";
         try {
-          const resLocal = await fetch("https://deinetuerai-production.up.railway.app/public-url");
+          const resLocal = await fetch("/api/public-url");
           if (resLocal.ok) {
             const pubData = await resLocal.json();
             foundPublicUrl = pubData?.publicUrl || "";
             setLocalServerUp(true);
             setPublicUrl(foundPublicUrl);
           } else {
-            throw new Error("Local server not responding");
+            throw new Error("Локальный сервер не отвечает");
           }
         } catch {
           setLocalServerUp(false);
           setPublicUrl("");
         }
+
       } catch (err) {
         console.error(err);
       }
