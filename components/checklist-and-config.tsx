@@ -96,7 +96,7 @@ export default function ChecklistAndConfig({
     };
 
     pollChecks();
-    const intervalId = setInterval(() => polling && pollChecks(), 1000);
+    const intervalId = setInterval(() => polling && pollChecks(), 10000);
     return () => {
       polling = false;
       clearInterval(intervalId);
