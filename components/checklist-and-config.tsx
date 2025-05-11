@@ -131,7 +131,7 @@ export default function ChecklistAndConfig({
     let success = false;
     for (let i = 0; i < 5; i++) {
       try {
-        const resTest = await fetch(publicUrl + "/public-url");
+        const resTest = await fetch("/api/public-url");
         if (resTest.ok) {
           setPublicUrlAccessible(true);
           success = true;
