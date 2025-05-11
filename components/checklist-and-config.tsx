@@ -214,13 +214,13 @@ export default function ChecklistAndConfig({
           ),
       },
       {
-        label: "Start local WebSocket server",
+        label: "Start your WebSocket OpenAI server",
         done: localServerUp,
         description: "cd websocket-server && npm run dev",
         field: null,
       },
       {
-        label: "Start backend",
+        label: "Open public port to your backend",
         done: publicUrlAccessible,
         description: "Then set backend URL in websocket-server/.env",
         field: (
