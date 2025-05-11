@@ -48,6 +48,8 @@ export default function ChecklistAndConfig({
   const isWebhookMismatch =
     appendedTwimlUrl && currentVoiceUrl && appendedTwimlUrl !== currentVoiceUrl;
 
+  console.log(appendedTwimlUrl, currentVoiceUrl)
+
   useEffect(() => {
     let polling = true;
 
