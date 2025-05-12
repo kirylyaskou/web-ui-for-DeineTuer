@@ -15,7 +15,7 @@ const Transcript: React.FC<TranscriptProps> = ({ items }) => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [items]);
 
-  // показываем только сообщения и результаты функций
+  // Show messages, function calls, and function call outputs in the transcript
   const transcriptItems = items.filter(
     (it) =>
       it.type === "message" ||
@@ -43,58 +43,49 @@ const Transcript: React.FC<TranscriptProps> = ({ items }) => {
             </div>
           </div>
         )}
-
         <ScrollArea className="h-full">
           <div className="flex flex-col gap-6 p-6">
             {transcriptItems.map((msg, i) => {
               const isUser = msg.role === "user";
               const isTool = msg.role === "tool";
-              const isAsst = msg.role === "assistant";
-
-              // иконка: пользователь, тул или ассистент
+              // Default to assistant if not user or tool
               const Icon = isUser ? Phone : isTool ? Wrench : Bot;
 
-              // объединяем текстовые части в строку
+              // Combine all text parts into a single string for display
               const displayText = msg.content
                 ? msg.content.map((c) => c.text).join("")
                 : "";
 
               return (
                 <div key={i} className="flex items-start gap-3">
-                  {/* Иконка */}
                   <div
-                    className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center border ${isUser
+                    className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center border ${
+                      isUser
                         ? "bg-background border-border"
+                        : isTool
+                        ? "bg-secondary border-secondary"
                         : "bg-secondary border-secondary"
-                      }`}
+                    }`}
                   >
                     <Icon className="h-4 w-4" />
                   </div>
-
-                  {/* Контент */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1.5">
                       <span
-                        className={`text-sm font-medium ${isUser ? "text-muted-foreground" : "text-foreground"
-                          }`}
+                        className={`text-sm font-medium ${
+                          isUser ? "text-muted-foreground" : "text-foreground"
+                        }`}
                       >
                         {isUser
                           ? "Caller"
                           : isTool
-                            ? "Tool Response"
-                            : "Assistant"}
+                          ? "Tool Response"
+                          : "Assistant"}
                       </span>
-
-                      {/* таймстэмп + latency */}
                       <span className="text-xs text-muted-foreground">
                         {msg.timestamp}
-                        {/* если это ассистент и есть response_ms — показываем */}
-                        {isAsst && msg.response_ms !== undefined && (
-                          <> · {(msg.response_ms / 1000).toFixed(2)} s</>
-                        )}
                       </span>
                     </div>
-
                     <p className="text-sm text-muted-foreground leading-relaxed break-words">
                       {displayText}
                     </p>
@@ -102,7 +93,6 @@ const Transcript: React.FC<TranscriptProps> = ({ items }) => {
                 </div>
               );
             })}
-            {/* «якорь» для автоскролла */}
             <div ref={scrollRef} />
           </div>
         </ScrollArea>

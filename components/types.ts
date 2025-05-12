@@ -13,7 +13,6 @@ export type Item = {
   params?: Record<string, any>;
   // For "function_call_output" items
   output?: string;
-  response_ms?: number;
 };
 
 export interface PhoneNumber {
