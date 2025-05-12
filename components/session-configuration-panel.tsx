@@ -213,7 +213,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
                   <SelectValue placeholder="Select model" />
                 </SelectTrigger>
                 <SelectContent>
-                  {["gpt-4o-realtime-preview-2024-12-17", "gpt-4o-mini-realtime-preview-2024-12-17"].map((v) => (
+                  {["gpt-4o-realtime-preview-2024-10-01", "gpt-4o-mini-realtime-preview-2024-12-17"].map((v) => (
                     <SelectItem key={v} value={v}>
                       {v}
                     </SelectItem>
