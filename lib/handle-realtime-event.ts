@@ -31,6 +31,11 @@ export default function handleRealtimeEvent(
   const { type } = ev;
 
   switch (type) {
+
+    case "response.thinking_time": {
+      console.log(ev)
+    }
+
     case "session.created": {
       // Starting a new session, clear all items
       setItems([]);
@@ -123,10 +128,10 @@ export default function handleRealtimeEvent(
         prev.map((m) =>
           m.id === item_id && m.type === "message" && m.role === "user"
             ? {
-                ...m,
-                content: [{ type: "text", text: transcript }],
-                status: "completed",
-              }
+              ...m,
+              content: [{ type: "text", text: transcript }],
+              status: "completed",
+            }
             : m
         )
       );
