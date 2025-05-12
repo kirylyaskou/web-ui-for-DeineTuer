@@ -26,9 +26,9 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
   onSave,
 }) => {
   const [instructions, setInstructions] = useState(
-    "You are a helpful assistant in a phone call."
+    "You are a virtual assistant for Deine Tür. Your role is to politely and professionally answer customer questions in clear, simple German. Always address users formally (`Sie`), keep responses short (maximum three sentences), and use easy-to-understand language without gendering or special characters. Maintain a neutral tone and answer precisely based only on provided information."
   );
-  const [voice, setVoice] = useState("ash");
+  const [voice, setVoice] = useState("alloy");
   const [tools, setTools] = useState<string[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingSchemaStr, setEditingSchemaStr] = useState("");
@@ -41,7 +41,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Custom hook to fetch backend tools every 3 seconds
-  const backendTools = useBackendTools("https://deinetuerai-production.up.railway.app/tools", 3000);
+  const backendTools = useBackendTools("https://deinetuerai-production.up.railway.app/tools", 300000);
 
   // Track changes to determine if there are unsaved modifications
   useEffect(() => {
@@ -194,7 +194,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
                   <SelectValue placeholder="Select voice" />
                 </SelectTrigger>
                 <SelectContent>
-                  {["ash", "ballad", "coral", "sage", "verse"].map((v) => (
+                  {["allloy", "ash", "ballad", "coral", "sage", "verse"].map((v) => (
                     <SelectItem key={v} value={v}>
                       {v}
                     </SelectItem>
