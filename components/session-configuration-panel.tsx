@@ -28,7 +28,9 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
   const [instructions, setInstructions] = useState(
     "You are a virtual assistant for Deine Tür. Your role is to politely and professionally answer customer questions in clear, simple German. Always address users formally (`Sie`), keep responses short (maximum three sentences), and use easy-to-understand language without gendering or special characters. Maintain a neutral tone and answer precisely based only on provided information."
   );
+
   const [voice, setVoice] = useState("ash");
+  const [model, setModel] = useState("gpt-4o-realtime-preview-2024-12-17");
   const [tools, setTools] = useState<string[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingSchemaStr, setEditingSchemaStr] = useState("");
@@ -64,6 +66,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
       await onSave({
         instructions,
         voice,
+        model,
         tools: tools.map((tool) => JSON.parse(tool)),
       });
       setSaveStatus("saved");
@@ -205,12 +208,12 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
 
             <div className="space-y-2">
               <label className="text-sm font-medium leading-none">Model</label>
-              <Select value={voice} onValueChange={setVoice}>
+              <Select value={model} onValueChange={setModel}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select voice" />
+                  <SelectValue placeholder="Select model" />
                 </SelectTrigger>
                 <SelectContent>
-                  {["allloy", "ash", "ballad", "coral", "sage", "verse"].map((v) => (
+                  {["gpt-4o-realtime-preview-2024-12-17", "gpt-4o-mini-realtime-preview-2024-12-17"].map((v) => (
                     <SelectItem key={v} value={v}>
                       {v}
                     </SelectItem>
