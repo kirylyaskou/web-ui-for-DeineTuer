@@ -33,10 +33,22 @@ export default function handleRealtimeEvent(
   switch (type) {
 
     case "assistant.response_time": {
-      console.log(ev)
+      const { ms } = ev;
+
+      // втыкаем latency в последний ассистент-месседж
+      setItems(prev => {
+        const updated = [...prev];
+        for (let i = updated.length - 1; i >= 0; i--) {
+          if (updated[i].role === "assistant") {
+            updated[i] = { ...updated[i], response_ms: ms };
+            break;
+          }
+        }
+        return updated;
+      });
+
       break;
     }
-
     case "session.created": {
       // Starting a new session, clear all items
       setItems([]);
