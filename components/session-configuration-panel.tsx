@@ -197,7 +197,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
                   <SelectValue placeholder="Select voice" />
                 </SelectTrigger>
                 <SelectContent>
-                  {["allloy", "ash", "ballad", "coral", "sage", "verse"].map((v) => (
+                  {["alloy", "ash", "ballad", "coral", "sage", "verse"].map((v) => (
                     <SelectItem key={v} value={v}>
                       {v}
                     </SelectItem>
