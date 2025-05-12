@@ -25,9 +25,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
   callStatus,
   onSave,
 }) => {
-  const [instructions, setInstructions] = useState(
-    "You are a virtual assistant for Deine Tür. Your role is to politely and professionally answer customer questions in clear, simple German. Always address users formally (`Sie`), keep responses short (maximum three sentences), and use easy-to-understand language without gendering or special characters. Maintain a neutral tone and answer precisely based only on provided information."
-  );
+  const [instructions, setInstructions] = useState("");
 
   const [voice, setVoice] = useState("ash");
   const [model, setModel] = useState("gpt-4o-realtime-preview-2024-12-17");
@@ -184,7 +182,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
               </label>
               <Textarea
                 placeholder="Enter instructions"
-                className="min-h-[100px] resize-none"
+                className="min-h-[400px] max-h-[800px]"
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value)}
               />
