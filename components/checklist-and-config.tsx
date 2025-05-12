@@ -46,7 +46,7 @@ export default function ChecklistAndConfig({
 
   const appendedTwimlUrl = publicUrl ? `${publicUrl}/twiml` : "";
   const isWebhookMismatch =
-    appendedTwimlUrl && currentVoiceUrl && appendedTwimlUrl !== currentVoiceUrl;
+    appendedTwimlUrl && currentVoiceUrl && `https://${appendedTwimlUrl}` !== currentVoiceUrl;
 
   console.log(appendedTwimlUrl, currentVoiceUrl)
 
@@ -86,7 +86,7 @@ export default function ChecklistAndConfig({
             setLocalServerUp(true);
             setPublicUrl(foundPublicUrl);
           } else {
-            throw new Error("Локальный сервер не отвечает");
+            throw new Error("Server is down");
           }
         } catch {
           setLocalServerUp(false);
@@ -127,7 +127,7 @@ export default function ChecklistAndConfig({
     }
   };
 
-  const checkBackend= async () => {
+  const checkBackend = async () => {
     if (!localServerUp || !publicUrl) return;
     setbackendLoading(true);
     let success = false;
