@@ -28,7 +28,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
   const [instructions, setInstructions] = useState(
     "You are a virtual assistant for Deine Tür. Your role is to politely and professionally answer customer questions in clear, simple German. Always address users formally (`Sie`), keep responses short (maximum three sentences), and use easy-to-understand language without gendering or special characters. Maintain a neutral tone and answer precisely based only on provided information."
   );
-  const [voice, setVoice] = useState("alloy");
+  const [voice, setVoice] = useState("ash");
   const [tools, setTools] = useState<string[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingSchemaStr, setEditingSchemaStr] = useState("");
@@ -189,6 +189,22 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
 
             <div className="space-y-2">
               <label className="text-sm font-medium leading-none">Voice</label>
+              <Select value={voice} onValueChange={setVoice}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select voice" />
+                </SelectTrigger>
+                <SelectContent>
+                  {["allloy", "ash", "ballad", "coral", "sage", "verse"].map((v) => (
+                    <SelectItem key={v} value={v}>
+                      {v}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none">Model</label>
               <Select value={voice} onValueChange={setVoice}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select voice" />
