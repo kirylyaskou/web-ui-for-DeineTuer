@@ -32,8 +32,9 @@ export default function handleRealtimeEvent(
 
   switch (type) {
 
-    case "response.thinking_time": {
+    case "assistant.response_time": {
       console.log(ev)
+      break;
     }
 
     case "session.created": {
