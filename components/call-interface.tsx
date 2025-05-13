@@ -18,7 +18,7 @@ const CallInterface = () => {
   const [ws, setWs] = useState<WebSocket | null>(null);
 
   useEffect(() => {
-    if (allConfigsReady && !ws) {
+    if (!ws) {
       const newWs = new WebSocket("wss://deinetuerai-production.up.railway.app/logs");
 
       newWs.onopen = (e) => {
@@ -42,7 +42,7 @@ const CallInterface = () => {
 
       setWs(newWs);
     }
-  }, [allConfigsReady, ws]);
+  }, [ws]);
 
   return (
     <div className="h-screen bg-white flex flex-col">
