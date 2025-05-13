@@ -9,11 +9,11 @@ export default function handleRealtimeEvent(
   const now = () => new Date().toLocaleTimeString();
 
   const createNewItem = (base: Partial<Item>): Item =>
-    ({
-      object: "realtime.item",
-      timestamp: now(),
-      ...base,
-    } as Item);
+  ({
+    object: "realtime.item",
+    timestamp: now(),
+    ...base,
+  } as Item);
 
   function updateOrAddItem(
     id: string,
@@ -34,14 +34,11 @@ export default function handleRealtimeEvent(
     });
   }
 
-  /* ───────── routing ───────── */
   switch (ev.type) {
-    /* ---------- новая сессия ---------- */
     case "session.created":
       setItems([]);
       break;
 
-    /* ---------- пользователь начал говорить ---------- */
     case "input_audio_buffer.speech_started": {
       const { item_id } = ev;
       updateOrAddItem(item_id, {
@@ -53,7 +50,6 @@ export default function handleRealtimeEvent(
       break;
     }
 
-    /* ---------- финальный транскрипт пользователя ---------- */
     case "conversation.item.input_audio_transcription.completed": {
       const { item_id, transcript } = ev;
       updateOrAddItem(item_id, {
@@ -62,26 +58,33 @@ export default function handleRealtimeEvent(
       });
       break;
     }
-
-    /* ---------- latency от сервера ---------- */
     case "latency.user_to_ai": {
       const { latency_ms } = ev;
 
       setItems((prev) => {
-        const lastIdx = [...prev]
+        const lastUserIdx = [...prev]
           .reverse()
           .findIndex((m) => m.role === "user" && m.type === "message");
-        if (lastIdx < 0) return prev;
+        if (lastUserIdx < 0) return prev;
 
-        const idx = prev.length - 1 - lastIdx;
+        const userIdx = prev.length - 1 - lastUserIdx;
+
+        // Найти первое assistant-сообщение после userIdx
+        const assistantIdx = prev.slice(userIdx + 1).findIndex(
+          (m) => m.role === "assistant" && m.type === "message"
+        );
+        if (assistantIdx < 0) return prev;
+
+        const realAssistantIdx = userIdx + 1 + assistantIdx;
+
         const copy = [...prev];
-        copy[idx] = { ...copy[idx], latencyMs: latency_ms };
+        copy[realAssistantIdx] = { ...copy[realAssistantIdx], latencyMs: latency_ms };
         return copy;
       });
       break;
     }
 
-    /* ---------- создан conversation.item ---------- */
+
     case "conversation.item.created": {
       const { item } = ev;
 
@@ -94,7 +97,6 @@ export default function handleRealtimeEvent(
           timestamp: now(),
         });
       } else if (item.type === "function_call_output") {
-        /* вывод функции + отметка вызова */
         setItems((prev) => {
           const next = [
             ...prev,
@@ -115,7 +117,6 @@ export default function handleRealtimeEvent(
       break;
     }
 
-    /* ---------- потоковая текстовая часть ответа ---------- */
     case "response.content_part.added": {
       const { item_id, part, output_index } = ev;
       if (part.type === "text" && output_index === 0) {
@@ -132,7 +133,6 @@ export default function handleRealtimeEvent(
       break;
     }
 
-    /* ---------- потоковый транскрипт (assistant) ---------- */
     case "response.audio_transcript.delta": {
       const { item_id, delta, output_index } = ev;
       if (output_index === 0 && delta) {
@@ -149,7 +149,6 @@ export default function handleRealtimeEvent(
       break;
     }
 
-    /* ---------- финальный output assistant ---------- */
     case "response.output_item.done": {
       const { item } = ev;
       if (item.type === "function_call") {
@@ -161,9 +160,13 @@ export default function handleRealtimeEvent(
             content: [
               {
                 type: "text",
-                text: `${item.name}(${JSON.stringify(
-                  JSON.parse(item.arguments)
-                )})`,
+                text: `${item.name}(${(() => {
+                  try {
+                    return JSON.stringify(JSON.parse(item.arguments));
+                  } catch {
+                    return item.arguments;
+                  }
+                })()})`,
               },
             ],
             status: "running",
@@ -173,7 +176,13 @@ export default function handleRealtimeEvent(
       break;
     }
 
+    case "response.audio.delta": {
+      // Можно добавить отображение аудиодельт, если нужно
+      break;
+    }
+
     default:
+      console.warn("Unknown event type:", ev.type, ev);
       break;
   }
 }

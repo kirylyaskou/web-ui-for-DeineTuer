@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { getWebSocket, subscribe } from "./singletonWebSocket";
+import { getWebSocket, subscribe } from "./singleton-web-socket";
 
 export default function useReliableWebSocket(
     url: string,
