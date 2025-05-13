@@ -1,21 +1,27 @@
 export type Item = {
   id: string;
-  object: string; // e.g. "realtime.item"
+  object: string;                             // "realtime.item"
   type: "message" | "function_call" | "function_call_output";
+
+  /* визуальные */
   timestamp?: string;
   status?: "running" | "completed";
-  // For "message" items
+
+  /* message */
   role?: "system" | "user" | "assistant" | "tool";
   content?: { type: string; text: string }[];
-  // For "function_call" items
+
+  /* function_call */
   name?: string;
   call_id?: string;
   params?: Record<string, any>;
-  // For "function_call_output" items
-  output?: string;
-  responseDurationMs?: number;
-};
 
+  /* function_call_output */
+  output?: string;
+
+  /* метрики */
+  latencyMs?: number;             
+};
 
 export interface PhoneNumber {
   sid: string;
@@ -29,5 +35,5 @@ export type FunctionCall = {
   completed?: boolean;
   response?: string;
   status?: string;
-  call_id?: string; // ensure each call has a call_id
+  call_id?: string;
 };
