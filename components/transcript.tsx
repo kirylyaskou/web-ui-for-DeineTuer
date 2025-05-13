@@ -15,16 +15,13 @@ const Transcript: React.FC<TranscriptProps> = ({ items }) => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [items]);
 
+  // Show messages, function calls, and function call outputs in the transcript
   const transcriptItems = items.filter(
     (it) =>
       it.type === "message" ||
       it.type === "function_call" ||
       it.type === "function_call_output"
   );
-
-  const formatDuration = (ms: number) => {
-    return (ms / 1000).toFixed(2) + "s";
-  };
 
   return (
     <Card className="h-full flex flex-col overflow-hidden">
@@ -51,16 +48,13 @@ const Transcript: React.FC<TranscriptProps> = ({ items }) => {
             {transcriptItems.map((msg, i) => {
               const isUser = msg.role === "user";
               const isTool = msg.role === "tool";
+              // Default to assistant if not user or tool
               const Icon = isUser ? Phone : isTool ? Wrench : Bot;
 
+              // Combine all text parts into a single string for display
               const displayText = msg.content
                 ? msg.content.map((c) => c.text).join("")
                 : "";
-
-              const timestampDisplay =
-                msg.role === "assistant" && msg.responseDurationMs
-                  ? `${msg.timestamp || ""} (${formatDuration(msg.responseDurationMs)})`
-                  : msg.timestamp || "";
 
               return (
                 <div key={i} className="flex items-start gap-3">
@@ -89,7 +83,7 @@ const Transcript: React.FC<TranscriptProps> = ({ items }) => {
                           : "Assistant"}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        {timestampDisplay}
+                        {msg.timestamp}
                       </span>
                     </div>
                     <p className="text-sm text-muted-foreground leading-relaxed break-words">

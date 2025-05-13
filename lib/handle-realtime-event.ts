@@ -14,6 +14,7 @@ export default function handleRealtimeEvent(
   }
 
   // Helper function to update an existing item if found by id, or add a new one if not.
+  // We can also pass partial updates to reduce repetitive code.
   function updateOrAddItem(id: string, updates: Partial<Item>): void {
     setItems((prev) => {
       const idx = prev.findIndex((m) => m.id === id);
@@ -82,7 +83,10 @@ export default function handleRealtimeEvent(
             ];
           }
         });
-      } else if (item.type === "function_call_output") {
+      }
+      // NOTE: We no longer handle function_call items here.
+      // The handling of function_call items has been moved to the "response.output_item.done" event.
+      else if (item.type === "function_call_output") {
         // Function call output item created
         // Add the output item and mark the corresponding function_call as completed
         // Also display in transcript as tool message with the response
@@ -138,15 +142,12 @@ export default function handleRealtimeEvent(
           if (idx >= 0) {
             const updated = [...prev];
             const existingContent = updated[idx].content || [];
-            // Ensure we don't duplicate content by checking if it already exists
-            const contentExists = existingContent.some(
-              (c) => c.type === part.type && c.text === part.text
-            );
             updated[idx] = {
               ...updated[idx],
-              content: contentExists
-                ? existingContent
-                : [...existingContent, { type: part.type, text: part.text }],
+              content: [
+                ...existingContent,
+                { type: part.type, text: part.text },
+              ],
             };
             return updated;
           } else {
@@ -176,7 +177,6 @@ export default function handleRealtimeEvent(
           if (idx >= 0) {
             const updated = [...prev];
             const existingContent = updated[idx].content || [];
-            // Append delta as new content without overwriting existing
             updated[idx] = {
               ...updated[idx],
               content: [...existingContent, { type: "text", text: delta }],
@@ -222,31 +222,6 @@ export default function handleRealtimeEvent(
           }),
         ]);
       }
-      break;
-    }
-
-    case "response.time": {
-      // Handle response time event and attach it to the most recent assistant item
-      const { durationMs } = ev;
-      setItems((prev) => {
-        // Find the most recent assistant item
-        const lastAssistantItemIndex = prev
-          .slice()
-          .reverse()
-          .findIndex(
-            (item) => item.type === "message" && item.role === "assistant"
-          );
-        if (lastAssistantItemIndex >= 0) {
-          const index = prev.length - 1 - lastAssistantItemIndex;
-          const updated = [...prev];
-          updated[index] = {
-            ...updated[index],
-            responseDurationMs: durationMs,
-          };
-          return updated;
-        }
-        return prev; // If no assistant item found, do nothing
-      });
       break;
     }
 
