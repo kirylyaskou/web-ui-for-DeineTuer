@@ -7,16 +7,23 @@ export default function useReliableWebSocket(
   onMessage: MsgHandler,
   protocols?: string | string[]
 ) {
-  /* global singleton */
-  const global = typeof window !== "undefined" ? (window as any).__logsWS : undefined;
-  const wsRef  = useRef<WebSocket | null>(global ?? null);
-  const retry  = useRef<NodeJS.Timeout>();
+  // Используем глобальный сокет, если он уже есть и открыт
+  const globalWS = typeof window !== "undefined" ? (window as any).__logsWS : undefined;
+  const wsRef = useRef<WebSocket | null>(globalWS && globalWS.readyState === WebSocket.OPEN ? globalWS : null);
+  const retry = useRef<NodeJS.Timeout>();
   const [readyState, setReady] = useState(
     wsRef.current?.readyState ?? WebSocket.CLOSED,
   );
 
   const connect = useCallback((attempt = 0) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    // Если уже есть открытый сокет — не пересоздаём
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) return;
+
+    if (typeof window !== "undefined" && (window as any).__logsWS && (window as any).__logsWS.readyState === WebSocket.OPEN) {
+      wsRef.current = (window as any).__logsWS;
+      setReady(WebSocket.OPEN);
+      return;
+    }
 
     console.log("[WS] try-connect", attempt);
     const ws = new WebSocket(url, protocols);
@@ -63,8 +70,8 @@ export default function useReliableWebSocket(
     connect();
     return () => {
       retry.current && clearTimeout(retry.current);
-      /* глобальный сокет оставляем жить */
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connect]);
 
   return { ws: wsRef.current, readyState };
