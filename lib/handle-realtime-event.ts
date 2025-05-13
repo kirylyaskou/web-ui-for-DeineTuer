@@ -9,11 +9,11 @@ export default function handleRealtimeEvent(
   const now = () => new Date().toLocaleTimeString();
 
   const createNewItem = (base: Partial<Item>): Item =>
-  ({
-    object: "realtime.item",
-    timestamp: now(),
-    ...base,
-  } as Item);
+    ({
+      object: "realtime.item",
+      timestamp: now(),
+      ...base,
+    } as Item);
 
   function updateOrAddItem(
     id: string,
@@ -49,23 +49,6 @@ export default function handleRealtimeEvent(
         role: "user",
         content: [{ type: "text", text: "..." }],
         status: "running",
-      });
-      break;
-    }
-
-    case "latency.user_to_ai": {
-      const { latency_ms } = ev;
-
-      setItems((prev) => {
-        const lastIdx = [...prev]
-          .reverse()
-          .findIndex((m) => m.role === "assistant" && m.type === "message");
-        if (lastIdx < 0) return prev;
-
-        const idx = prev.length - 1 - lastIdx;
-        const copy = [...prev];
-        copy[idx] = { ...copy[idx], latencyMs: latency_ms };
-        return copy;
       });
       break;
     }
