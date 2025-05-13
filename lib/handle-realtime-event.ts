@@ -4,7 +4,6 @@ export default function handleRealtimeEvent(
   ev: any,
   setItems: React.Dispatch<React.SetStateAction<Item[]>>
 ) {
-  // Helper function to create a new item with default fields
   function createNewItem(base: Partial<Item>): Item {
     return {
       object: "realtime.item",
@@ -13,8 +12,6 @@ export default function handleRealtimeEvent(
     } as Item;
   }
 
-  // Helper function to update an existing item if found by id, or add a new one if not.
-  // We can also pass partial updates to reduce repetitive code.
   function updateOrAddItem(id: string, updates: Partial<Item>): void {
     setItems((prev) => {
       const idx = prev.findIndex((m) => m.id === id);
@@ -32,13 +29,11 @@ export default function handleRealtimeEvent(
 
   switch (type) {
     case "session.created": {
-      // Starting a new session, clear all items
       setItems([]);
       break;
     }
 
     case "input_audio_buffer.speech_started": {
-      // Create a user message item with running status and placeholder content
       const { item_id } = ev;
       setItems((prev) => [
         ...prev,
@@ -56,7 +51,6 @@ export default function handleRealtimeEvent(
     case "conversation.item.created": {
       const { item } = ev;
       if (item.type === "message") {
-        // A completed message from user or assistant
         const updatedContent =
           item.content && item.content.length > 0 ? item.content : [];
         setItems((prev) => {
@@ -84,12 +78,8 @@ export default function handleRealtimeEvent(
           }
         });
       }
-      // NOTE: We no longer handle function_call items here.
-      // The handling of function_call items has been moved to the "response.output_item.done" event.
+
       else if (item.type === "function_call_output") {
-        // Function call output item created
-        // Add the output item and mark the corresponding function_call as completed
-        // Also display in transcript as tool message with the response
         setItems((prev) => {
           const newItems = [
             ...prev,
@@ -117,7 +107,6 @@ export default function handleRealtimeEvent(
     }
 
     case "conversation.item.input_audio_transcription.completed": {
-      // Update the user message with the final transcript
       const { item_id, transcript } = ev;
       setItems((prev) =>
         prev.map((m) =>
@@ -135,7 +124,6 @@ export default function handleRealtimeEvent(
 
     case "response.content_part.added": {
       const { item_id, part, output_index } = ev;
-      // Append new content to the assistant message if output_index == 0
       if (part.type === "text" && output_index === 0) {
         setItems((prev) => {
           const idx = prev.findIndex((m) => m.id === item_id);
@@ -151,7 +139,6 @@ export default function handleRealtimeEvent(
             };
             return updated;
           } else {
-            // If the item doesn't exist yet, create it as a running assistant message
             return [
               ...prev,
               createNewItem({
@@ -169,7 +156,6 @@ export default function handleRealtimeEvent(
     }
 
     case "response.audio_transcript.delta": {
-      // Streaming transcript text (assistant)
       const { item_id, delta, output_index } = ev;
       if (output_index === 0 && delta) {
         setItems((prev) => {
@@ -202,8 +188,6 @@ export default function handleRealtimeEvent(
     case "response.output_item.done": {
       const { item } = ev;
       if (item.type === "function_call") {
-        // A new function call item
-        // Display it in the transcript as an assistant message indicating a function is being requested
         console.log("function_call", item);
         setItems((prev) => [
           ...prev,
@@ -222,6 +206,29 @@ export default function handleRealtimeEvent(
           }),
         ]);
       }
+      break;
+    }
+
+    case "response.time": {
+      const { durationMs } = ev;
+      setItems((prev) => {
+        const lastAssistantItemIndex = prev
+          .slice()
+          .reverse()
+          .findIndex(
+            (item) => item.type === "message" && item.role === "assistant"
+          );
+        if (lastAssistantItemIndex >= 0) {
+          const index = prev.length - 1 - lastAssistantItemIndex;
+          const updated = [...prev];
+          updated[index] = {
+            ...updated[index],
+            responseDurationMs: durationMs,
+          };
+          return updated;
+        }
+        return prev;
+      });
       break;
     }
 
