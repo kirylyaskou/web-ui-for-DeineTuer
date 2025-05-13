@@ -1,5 +1,10 @@
 import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -8,8 +13,18 @@ import { Item } from "@/components/types";
 
 type FunctionCallsPanelProps = {
   items: Item[];
-  ws?: WebSocket | null; // pass down ws from parent
+  ws?: WebSocket | null;
 };
+
+/* ――― безопасный stringify ─―― */
+function pretty(raw?: string) {
+  if (!raw) return "";
+  try {
+    return JSON.stringify(JSON.parse(raw), null, 2);
+  } catch {
+    return raw; // вернём как есть, если JSON ещё не закончен
+  }
+}
 
 const FunctionCallsPanel: React.FC<FunctionCallsPanelProps> = ({
   items,
@@ -17,42 +32,38 @@ const FunctionCallsPanel: React.FC<FunctionCallsPanelProps> = ({
 }) => {
   const [responses, setResponses] = useState<Record<string, string>>({});
 
-  // Filter function_call items
+  /* только function_call items */
   const functionCalls = items.filter((it) => it.type === "function_call");
 
-  // For each function_call, check for a corresponding function_call_output
+  /* добавляем статус и найденный output */
   const functionCallsWithStatus = functionCalls.map((call) => {
-    const outputs = items.filter(
-      (it) => it.type === "function_call_output" && it.call_id === call.call_id
+    const outputItem = items.find(
+      (it) =>
+        it.type === "function_call_output" && it.call_id === call.call_id
     );
-    const outputItem = outputs[0];
-    const completed = call.status === "completed" || !!outputItem;
-    const response = outputItem ? outputItem.output : undefined;
     return {
       ...call,
-      completed,
-      response,
+      completed: call.status === "completed" || !!outputItem,
+      response: outputItem?.output,
     };
   });
 
-  const handleChange = (call_id: string, value: string) => {
+  const handleChange = (call_id: string, value: string) =>
     setResponses((prev) => ({ ...prev, [call_id]: value }));
-  };
 
   const handleSubmit = (call: Item) => {
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    const call_id = call.call_id || "";
+    const call_id = call.call_id ?? "";
     ws.send(
       JSON.stringify({
         type: "conversation.item.create",
         item: {
           type: "function_call_output",
-          call_id: call_id,
-          output: JSON.stringify(responses[call_id] || ""),
+          call_id,
+          output: JSON.stringify(responses[call_id] ?? ""),
         },
       })
     );
-    // Ask the model to continue after providing the tool response
     ws.send(JSON.stringify({ type: "response.create" }));
   };
 
@@ -63,6 +74,7 @@ const FunctionCallsPanel: React.FC<FunctionCallsPanelProps> = ({
           Function Calls
         </CardTitle>
       </CardHeader>
+
       <CardContent className="flex-1 p-4">
         <ScrollArea className="h-full">
           <div className="space-y-4">
@@ -71,6 +83,7 @@ const FunctionCallsPanel: React.FC<FunctionCallsPanelProps> = ({
                 key={call.id}
                 className="rounded-lg border bg-card p-4 space-y-3"
               >
+                {/* header */}
                 <div className="flex items-center justify-between">
                   <h3 className="font-medium text-sm">{call.name}</h3>
                   <Badge variant={call.completed ? "default" : "secondary"}>
@@ -78,32 +91,34 @@ const FunctionCallsPanel: React.FC<FunctionCallsPanelProps> = ({
                   </Badge>
                 </div>
 
+                {/* аргументы */}
                 <div className="text-sm text-muted-foreground font-mono break-all">
-                  {JSON.stringify(call.params)}
+                  {pretty((call as any).arguments)}
                 </div>
 
+                {/* ввод ответа или уже готовый ответ */}
                 {!call.completed ? (
                   <div className="space-y-2">
                     <Input
                       placeholder="Enter response"
-                      value={responses[call.call_id || ""] || ""}
+                      value={responses[call.call_id ?? ""] ?? ""}
                       onChange={(e) =>
-                        handleChange(call.call_id || "", e.target.value)
+                        handleChange(call.call_id ?? "", e.target.value)
                       }
                     />
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleSubmit(call)}
-                      disabled={!responses[call.call_id || ""]}
+                      disabled={!responses[call.call_id ?? ""]}
                       className="w-full"
                     >
                       Submit Response
                     </Button>
                   </div>
                 ) : (
-                  <div className="text-sm rounded-md bg-muted p-3">
-                    {JSON.stringify(JSON.parse(call.response || ""))}
+                  <div className="text-sm rounded-md bg-muted p-3 font-mono">
+                    {pretty(call.response)}
                   </div>
                 )}
               </div>
