@@ -20,7 +20,9 @@ export type Item = {
   output?: string;
 
   /* метрики */
-  latencyMs?: number;             
+  latencyMs?: number;
+
+  arguments?: string;
 };
 
 export interface PhoneNumber {
