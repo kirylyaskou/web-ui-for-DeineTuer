@@ -19,28 +19,29 @@ const CallInterface = () => {
 
   useEffect(() => {
     if (allConfigsReady && !ws) {
-      const newWs = new WebSocket("wss://deinetuerai-production.up.railway.app/logs");
-
-      newWs.onopen = () => {
-        console.log("Connected to logs websocket");
-        setCallStatus("connected");
-      };
-
-      newWs.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        console.log("Received logs event:", data);
-        handleRealtimeEvent(data, setItems);
-      };
-
-      newWs.onclose = () => {
-        console.log("Logs websocket disconnected");
-        setWs(null);
-        setCallStatus("disconnected");
-      };
-
-      setWs(newWs);
+      const reconnectDelay = 3000;
+      const timer = setTimeout(() => {
+        const newWs = new WebSocket("wss://deinetuerai-production.up.railway.app/logs");
+        newWs.onopen = () => {
+          console.log("Connected to logs websocket");
+          setCallStatus("connected");
+        };
+        newWs.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          console.log("Received logs event:", data);
+          handleRealtimeEvent(data, setItems);
+        };
+        newWs.onclose = () => {
+          console.log("Logs websocket disconnected");
+          setWs(null);
+          setCallStatus("disconnected");
+        };
+        setWs(newWs);
+      }, reconnectDelay);
+      return () => clearTimeout(timer);
     }
   }, [allConfigsReady, ws]);
+
 
   return (
     <div className="h-screen bg-white flex flex-col">
