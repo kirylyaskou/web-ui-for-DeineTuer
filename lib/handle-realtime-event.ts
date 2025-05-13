@@ -1,78 +1,179 @@
-import { useRef, useEffect, useState, useCallback } from "react";
+import { Item } from "@/components/types";
 
-type MsgHandler = (payload: any) => void;
-
-export default function useReliableWebSocket(
-  url: string,
-  onMessage: MsgHandler,
-  protocols?: string | string[]
+export default function handleRealtimeEvent(
+  ev: any,
+  setItems: React.Dispatch<React.SetStateAction<Item[]>>
 ) {
-  /* ───────── singleton ───────── */
-  const globalWS =
-    typeof window !== "undefined" ? (window as any).__logsWS : undefined;
+  /* ───────── helpers ───────── */
+  console.log(ev)
+  const now = () => new Date().toLocaleTimeString();
 
-  const wsRef   = useRef<WebSocket | null>(globalWS ?? null);
-  const retryId = useRef<NodeJS.Timeout>();
-  const [readyState, setReadyState] = useState<number>(
-    wsRef.current?.readyState ?? WebSocket.CLOSED
-  );
+  const createNewItem = (base: Partial<Item>): Item =>
+    ({
+      object: "realtime.item",
+      timestamp: now(),
+      ...base,
+    } as Item);
 
-  /* ───────── connect logic ───── */
-  const connect = useCallback((attempt = 0) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+  function updateOrAddItem(
+    id: string,
+    updates: Partial<Item> | ((prev?: Item) => Partial<Item>)
+  ) {
+    setItems((prev) => {
+      const idx = prev.findIndex((m) => m.id === id);
+      const prevItem = idx >= 0 ? prev[idx] : undefined;
+      const patch =
+        typeof updates === "function" ? updates(prevItem) : updates;
 
-    console.log("WS try-connect", url, "attempt", attempt);
-    const ws = new WebSocket(url, protocols);
-    wsRef.current = ws;
-    setReadyState(WebSocket.CONNECTING);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = { ...copy[idx], ...patch };
+        return copy;
+      }
+      return [...prev, createNewItem({ id, ...patch })];
+    });
+  }
 
-    /* ----- open ----- */
-    ws.onopen = () => {
-      console.log("WS open", url);
-      (window as any).__logsWS = ws;         // запоминаем глобально
-      setReadyState(WebSocket.OPEN);
+  /* ───────── routing ───────── */
+  switch (ev.type) {
+    /* ---------- новая сессия ---------- */
+    case "session.created":
+      setItems([]);
+      break;
 
-      /* keep-alive ping */
-      const id = setInterval(() => {
-        if (ws.readyState === WebSocket.OPEN) ws.send("ping");
-      }, 60_000);
-      ws.addEventListener("close", () => clearInterval(id));
-    };
+    /* ---------- пользователь начал говорить ---------- */
+    case "input_audio_buffer.speech_started": {
+      const { item_id } = ev;
+      updateOrAddItem(item_id, {
+        type: "message",
+        role: "user",
+        content: [{ type: "text", text: "..." }],
+        status: "running",
+      });
+      break;
+    }
 
-    /* ----- message ----- */
-    ws.onmessage = (evt) => {
-      if (evt.data === "pong") return;       // ответ на ping
-      console.log("WS msg", typeof evt.data === "string"
-        ? evt.data.slice(0, 150)
-        : "<binary>"
-      );
-      try   { onMessage(JSON.parse(evt.data as string)); }
-      catch { console.error("WS parse error"); }
-    };
+    /* ---------- финальный транскрипт пользователя ---------- */
+    case "conversation.item.input_audio_transcription.completed": {
+      const { item_id, transcript } = ev;
+      updateOrAddItem(item_id, {
+        content: [{ type: "text", text: transcript }],
+        status: "completed",
+      });
+      break;
+    }
 
-    /* ----- close ----- */
-    ws.onclose = (ev) => {
-      console.log("WS close", ev.code, ev.reason);
-      setReadyState(WebSocket.CLOSED);
+    /* ---------- latency от сервера ---------- */
+    case "latency.user_to_ai": {
+      const { latency_ms } = ev;
 
-      /* duplicate → оставляем старый живым, без reconnect */
-      if (ev.code === 1001 && ev.reason === "duplicate client") return;
+      setItems((prev) => {
+        const lastIdx = [...prev]
+          .reverse()
+          .findIndex((m) => m.role === "user" && m.type === "message");
+        if (lastIdx < 0) return prev;
 
-      const delay = Math.min(30_000, 2 ** attempt * 1_000);
-      retryId.current = setTimeout(() => connect(attempt + 1), delay);
-    };
+        const idx = prev.length - 1 - lastIdx;
+        const copy = [...prev];
+        copy[idx] = { ...copy[idx], latencyMs: latency_ms };
+        return copy;
+      });
+      break;
+    }
 
-    ws.onerror = (e) => console.error("WS error", e);
-  }, [url, onMessage, protocols]);
+    /* ---------- создан conversation.item ---------- */
+    case "conversation.item.created": {
+      const { item } = ev;
 
-  /* ───────── mount/unmount ───── */
-  useEffect(() => {
-    connect();                                // первый запуск
-    return () => {
-      retryId.current && clearTimeout(retryId.current);
-      /* сокет глобальный – не закрываем здесь */
-    };
-  }, [connect]);
+      if (item.type === "message") {
+        const content = item.content?.length ? item.content : [];
+        updateOrAddItem(item.id, {
+          ...item,
+          content,
+          status: "completed",
+          timestamp: now(),
+        });
+      } else if (item.type === "function_call_output") {
+        /* вывод функции + отметка вызова */
+        setItems((prev) => {
+          const next = [
+            ...prev,
+            createNewItem({
+              ...item,
+              role: "tool",
+              content: [{ type: "text", text: `Function response: ${item.output}` }],
+              status: "completed",
+            }),
+          ];
+          return next.map((m) =>
+            m.call_id === item.call_id && m.type === "function_call"
+              ? { ...m, status: "completed" }
+              : m
+          );
+        });
+      }
+      break;
+    }
 
-  return { ws: wsRef.current, readyState };
+    /* ---------- потоковая текстовая часть ответа ---------- */
+    case "response.content_part.added": {
+      const { item_id, part, output_index } = ev;
+      if (part.type === "text" && output_index === 0) {
+        updateOrAddItem(item_id, (prev) => {
+          const old = prev?.content ?? [];
+          return {
+            type: "message",
+            role: "assistant",
+            status: "running",
+            content: [...old, { type: part.type, text: part.text }],
+          };
+        });
+      }
+      break;
+    }
+
+    /* ---------- потоковый транскрипт (assistant) ---------- */
+    case "response.audio_transcript.delta": {
+      const { item_id, delta, output_index } = ev;
+      if (output_index === 0 && delta) {
+        updateOrAddItem(item_id, (prev) => {
+          const old = prev?.content ?? [];
+          return {
+            type: "message",
+            role: "assistant",
+            status: "running",
+            content: [...old, { type: "text", text: delta }],
+          };
+        });
+      }
+      break;
+    }
+
+    /* ---------- финальный output assistant ---------- */
+    case "response.output_item.done": {
+      const { item } = ev;
+      if (item.type === "function_call") {
+        setItems((prev) => [
+          ...prev,
+          createNewItem({
+            ...item,
+            role: "assistant",
+            content: [
+              {
+                type: "text",
+                text: `${item.name}(${JSON.stringify(
+                  JSON.parse(item.arguments)
+                )})`,
+              },
+            ],
+            status: "running",
+          }),
+        ]);
+      }
+      break;
+    }
+
+    default:
+      break;
+  }
 }
