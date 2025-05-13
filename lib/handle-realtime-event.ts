@@ -1,4 +1,8 @@
+/* src/utils/handleRealtimeEvent.ts ------------------------------------------------- */
 import { Item } from "@/components/types";
+
+/* Буфер, куда по item_id постепенно собираются JSON-аргументы функции */
+const argBuffers: Record<string, string> = {};
 
 export default function handleRealtimeEvent(
   ev: any,
@@ -34,19 +38,14 @@ export default function handleRealtimeEvent(
     });
   }
 
-  /* ───────── временный буфер для JSON-аргументов функции ───────── */
-  const argBuffers: Record<string, string> =
-    (handleRealtimeEvent as any)._argBuffers ?? {};
-  (handleRealtimeEvent as any)._argBuffers = argBuffers;
-
-  /* ───────── основной свитч ───────── */
+  /* ───────── основной switch ───────── */
   switch (ev.type) {
-    /* ============== session / служебные ============== */
+    /* ---------- Session ---------- */
     case "session.created":
       setItems([]);
       break;
 
-    /* ============== USER SPEECH ====================== */
+    /* ---------- User speech ---------- */
     case "input_audio_buffer.speech_started": {
       const { item_id } = ev;
       updateOrAddItem(item_id, {
@@ -55,6 +54,11 @@ export default function handleRealtimeEvent(
         content: [{ type: "text", text: "..." }],
         status: "running",
       });
+      break;
+    }
+
+    case "conversation.item.input_audio_transcription.delta": {
+      /* Просто игнорируем, чтобы не спамить warning-ами */
       break;
     }
 
@@ -67,23 +71,20 @@ export default function handleRealtimeEvent(
       break;
     }
 
-    /* ============== LATENCY ========================== */
+    /* ---------- Latency ---------- */
     case "latency.user_to_ai": {
       const { latency_ms } = ev;
-
       setItems((prev) => {
         const lastUserIdx = [...prev]
           .reverse()
           .findIndex((m) => m.role === "user" && m.type === "message");
         if (lastUserIdx < 0) return prev;
-
         const userIdx = prev.length - 1 - lastUserIdx;
 
         const assistantIdx = prev
           .slice(userIdx + 1)
           .findIndex((m) => m.role === "assistant" && m.type === "message");
         if (assistantIdx < 0) return prev;
-
         const realAssistantIdx = userIdx + 1 + assistantIdx;
 
         const copy = [...prev];
@@ -96,10 +97,9 @@ export default function handleRealtimeEvent(
       break;
     }
 
-    /* ============== MODEL СОЗДАЛА ITEM =============== */
+    /* ---------- Бэкенд создал item ---------- */
     case "conversation.item.created": {
       const { item } = ev;
-
       if (item.type === "message") {
         const content = item.content?.length ? item.content : [];
         updateOrAddItem(item.id, {
@@ -131,7 +131,7 @@ export default function handleRealtimeEvent(
       break;
     }
 
-    /* ============== FUNCTION CALL (ARGS streaming) === */
+    /* ---------- Function-call: дельты аргументов ---------- */
     case "response.function_call_arguments.delta": {
       const { item_id, delta } = ev;
       argBuffers[item_id] = (argBuffers[item_id] ?? "") + delta;
@@ -160,7 +160,7 @@ export default function handleRealtimeEvent(
       break;
     }
 
-    /* ============== ПОЛНЫЙ ВЫЗОВ ГОТОВ =============== */
+    /* ---------- Вызов функции завершён ---------- */
     case "response.output_item.done": {
       const { item } = ev;
       if (item.type === "function_call") {
@@ -172,13 +172,7 @@ export default function handleRealtimeEvent(
             content: [
               {
                 type: "text",
-                text: `${item.name}(${(() => {
-                  try {
-                    return JSON.stringify(JSON.parse(item.arguments));
-                  } catch {
-                    return item.arguments;
-                  }
-                })()})`,
+                text: `${item.name}(${item.arguments})`,
               },
             ],
             status: "running",
@@ -188,7 +182,7 @@ export default function handleRealtimeEvent(
       break;
     }
 
-    /* ============== STREAMING TEXT =================== */
+    /* ---------- Streaming text ---------- */
     case "response.content_part.added": {
       const { item_id, part, output_index } = ev;
       if (part.type === "text" && output_index === 0) {
@@ -205,7 +199,7 @@ export default function handleRealtimeEvent(
       break;
     }
 
-    /* ============== STREAMING TRANSCRIPT ============= */
+    /* ---------- Streaming transcript ---------- */
     case "response.audio_transcript.delta": {
       const { item_id, delta, output_index } = ev;
       if (output_index === 0 && delta) {
@@ -222,12 +216,11 @@ export default function handleRealtimeEvent(
       break;
     }
 
-    /* ============== ПРОЧИЕ AUDIO DELTAS ============== */
+    /* ---------- Аудио-дельты (можно игнорировать) ---------- */
     case "response.audio.delta":
-      // аудио-дельты можно обработать, если нужно визуализировать звук
       break;
 
-    /* ============== Мелкие системные события — игнор */
+    /* ---------- Прочие системные события: молча игнорируем ---------- */
     case "session.updated":
     case "response.created":
     case "response.done":
@@ -240,10 +233,9 @@ export default function handleRealtimeEvent(
     case "input_audio_buffer.committed":
     case "conversation.item.truncated":
     case "rate_limits.updated":
-      // ничего не делаем, чтобы не засорять консоль
       break;
 
-    /* ============== DEFAULT ========================== */
+    /* ---------- Unknown ---------- */
     default:
       console.warn("Unknown event type:", ev.type, ev);
       break;
