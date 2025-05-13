@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 
-type MsgHandler = (d: any) => void;
+type MsgHandler = (data: any) => void;
 
 export default function useReliableWebSocket(
   url: string,
@@ -11,10 +11,10 @@ export default function useReliableWebSocket(
   const retryId = useRef<NodeJS.Timeout>();
   const [ready, setReady] = useState<number>(WebSocket.CLOSED);
 
-  /* -------- connect ---------- */
   const connect = useCallback((attempt = 0) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
+    console.log("WS try-connect", url, "attempt", attempt);
     const ws = new WebSocket(url, protocols);
     wsRef.current = ws;
     setReady(WebSocket.CONNECTING);
@@ -22,29 +22,39 @@ export default function useReliableWebSocket(
     ws.onopen = () => {
       console.log("WS open", url);
       setReady(WebSocket.OPEN);
-      const id = setInterval(() => ws.readyState === WebSocket.OPEN && ws.send('{"type":"ping"}'), 60_000);
-      ws.addEventListener("close", () => clearInterval(id));
+      const keep = setInterval(
+        () => ws.readyState === WebSocket.OPEN && ws.send('{"type":"ping"}'),
+        60_000
+      );
+      ws.addEventListener("close", () => clearInterval(keep));
     };
 
-    ws.onmessage = (e) => {
-      console.log("WS ▶ message", typeof e.data === "string" ? e.data.slice(0, 200) : "<binary>");
-      if (e.data !== "pong") {
-        try { onMessage(JSON.parse(e.data as string)); }
-        catch (err) { console.error("WS JSON parse error", err); }
+    ws.onmessage = (evt) => {
+      console.log("WS msg", (typeof evt.data === "string" ? evt.data.slice(0, 120) : "<binary>"));
+      if (evt.data !== "pong") {
+        try   { onMessage(JSON.parse(evt.data as string)); }
+        catch (e) { console.error("WS JSON parse err", e); }
       }
     };
 
-    ws.onclose = (evt) => {
-      console.log("WS close", evt.code, evt.reason);
+    ws.onclose = (ev) => {
+      console.log("WS close", ev.code, ev.reason);
       setReady(WebSocket.CLOSED);
-      const backoff = Math.min(30_000, 2 ** attempt * 1_000);
-      retryId.current = setTimeout(() => connect(attempt + 1), backoff);
+      const delay = Math.min(30_000, 2 ** attempt * 1_000);
+      retryId.current = setTimeout(() => connect(attempt + 1), delay);
     };
 
-    ws.onerror = (err) => { console.error("WS error", err); ws.close(); };
+    /* просто логируем ошибку, НЕ закрываем сокет вручную */
+    ws.onerror = (e) => console.error("WS error", e);
   }, [url, onMessage, protocols]);
 
-  useEffect(() => { connect(); return () => { retryId.current && clearTimeout(retryId.current); wsRef.current?.close(); }; }, [connect]);
+  useEffect(() => {
+    connect();
+    return () => {
+      retryId.current && clearTimeout(retryId.current);
+      wsRef.current?.close(1000, "page unload");
+    };
+  }, [connect]);
 
   return { ws: wsRef.current, readyState: ready };
 }
