@@ -5,6 +5,7 @@ export default function handleRealtimeEvent(
   setItems: React.Dispatch<React.SetStateAction<Item[]>>
 ) {
   /* ───────── helpers ───────── */
+  console.log(ev)
   const now = () => new Date().toLocaleTimeString();
 
   const createNewItem = (base: Partial<Item>): Item =>
