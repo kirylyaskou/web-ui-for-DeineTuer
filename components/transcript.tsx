@@ -39,18 +39,17 @@ const Transcript: React.FC<TranscriptProps> = ({ items }) => {
             {shown.map((msg, i) => {
               const isUser = msg.role === "user";
               const isTool = msg.role === "tool";
-              const Icon   = isUser ? Phone : isTool ? Wrench : Bot;
-              const text   = msg.content?.map((c) => c.text).join("") ?? "";
+              const Icon = isUser ? Phone : isTool ? Wrench : Bot;
+              const text = msg.content?.map((c) => c.text).join("") ?? "";
 
               return (
                 <div key={i} className="flex items-start gap-3">
                   {/* аватар */}
                   <div
-                    className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center border ${
-                      isUser
+                    className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center border ${isUser
                         ? "bg-background border-border"
                         : "bg-secondary border-secondary"
-                    }`}
+                      }`}
                   >
                     <Icon className="h-4 w-4" />
                   </div>
@@ -59,16 +58,15 @@ const Transcript: React.FC<TranscriptProps> = ({ items }) => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1.5">
                       <span
-                        className={`text-sm font-medium ${
-                          isUser ? "text-muted-foreground" : "text-foreground"
-                        }`}
+                        className={`text-sm font-medium ${isUser ? "text-muted-foreground" : "text-foreground"
+                          }`}
                       >
                         {isUser ? "Caller" : isTool ? "Tool Response" : "Assistant"}
                       </span>
 
                       <span className="text-xs text-muted-foreground">{msg.timestamp}</span>
 
-                      {isUser && msg.latencyMs !== undefined && (
+                      {!isUser && msg.role === "assistant" && msg.latencyMs !== undefined && (
                         <span className="flex items-center gap-1 text-xs text-orange-600">
                           <Clock className="h-3 w-3" />
                           {msg.latencyMs} ms
