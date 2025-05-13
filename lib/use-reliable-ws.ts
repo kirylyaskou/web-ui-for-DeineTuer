@@ -1,78 +1,39 @@
-import { useRef, useEffect, useState, useCallback } from "react";
-
-type MsgHandler = (payload: any) => void;
+import { useEffect, useRef, useState } from "react";
+import { getWebSocket, subscribe } from "./singletonWebSocket";
 
 export default function useReliableWebSocket(
-  url: string,
-  onMessage: MsgHandler,
-  protocols?: string | string[]
+    url: string,
+    onMessage: (payload: any) => void,
+    protocols?: string | string[]
 ) {
-  // Используем глобальный сокет, если он уже есть и открыт
-  const globalWS = typeof window !== "undefined" ? (window as any).__logsWS : undefined;
-  const wsRef = useRef<WebSocket | null>(globalWS && globalWS.readyState === WebSocket.OPEN ? globalWS : null);
-  const retry = useRef<NodeJS.Timeout>();
-  const [readyState, setReady] = useState(
-    wsRef.current?.readyState ?? WebSocket.CLOSED,
-  );
+    const [readyState, setReady] = useState<WebSocket["readyState"]>(WebSocket.CLOSED);
+    const wsRef = useRef<WebSocket | null>(null);
 
-  const connect = useCallback((attempt = 0) => {
-    // Если уже есть открытый сокет — не пересоздаём
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) return;
+    useEffect(() => {
+        const ws = getWebSocket(url, protocols);
+        wsRef.current = ws;
 
-    if (typeof window !== "undefined" && (window as any).__logsWS && (window as any).__logsWS.readyState === WebSocket.OPEN) {
-      wsRef.current = (window as any).__logsWS;
-      setReady(WebSocket.OPEN);
-      return;
-    }
+        const handleOpen = () => setReady(WebSocket.OPEN);
+        const handleClose = () => setReady(WebSocket.CLOSED);
 
-    console.log("[WS] try-connect", attempt);
-    const ws = new WebSocket(url, protocols);
-    wsRef.current = ws;
-    setReady(WebSocket.CONNECTING);
+        ws.addEventListener("open", handleOpen);
+        ws.addEventListener("close", handleClose);
 
-    ws.onopen = () => {
-      console.log("[WS] open");
-      (window as any).__logsWS = ws;
-      setReady(WebSocket.OPEN);
+        // Подписка на сообщения
+        const unsub = subscribe(onMessage);
 
-      const keep = setInterval(() => {
-        ws.readyState === WebSocket.OPEN && ws.send("ping");
-      }, 60_000);
-      ws.addEventListener("close", () => clearInterval(keep));
-    };
+        // ping-keepalive
+        const keep = setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN) ws.send("ping");
+        }, 60_000);
 
-    ws.onmessage = (evt) => {
-      if (evt.data === "pong") return;
-      console.log("[WS] raw", typeof evt.data === "string"
-        ? evt.data.slice(0, 120)
-        : "<binary>");
-      try {
-        if (typeof evt.data === "string") {
-          onMessage(JSON.parse(evt.data));
-        }
-      } catch (err) {
-        console.error("WS parse error:", err);
-      }
-    };
+        return () => {
+            ws.removeEventListener("open", handleOpen);
+            ws.removeEventListener("close", handleClose);
+            clearInterval(keep);
+            unsub();
+        };
+    }, [url, protocols, onMessage]);
 
-    ws.onclose = (ev) => {
-      console.log("[WS] close", ev.code, ev.reason);
-      setReady(WebSocket.CLOSED);
-      if (ev.code === 1001 && ev.reason === "duplicate client") return;
-      const delay = Math.min(30_000, 2 ** attempt * 1_000);
-      retry.current = setTimeout(() => connect(attempt + 1), delay);
-    };
-
-    ws.onerror = (e) => console.error("[WS] error", e);
-  }, [url, onMessage, protocols]);
-
-  useEffect(() => {
-    connect();
-    return () => {
-      retry.current && clearTimeout(retry.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connect]);
-
-  return { ws: wsRef.current, readyState };
+    return { ws: wsRef.current, readyState };
 }

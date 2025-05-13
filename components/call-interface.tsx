@@ -24,19 +24,18 @@ export default function CallInterface() {
   );
   const { ws, readyState } = useReliableWebSocket(WS_URL, onWsMessage);
 
-  const callStatus =
-    readyState === WebSocket.OPEN
-      ? "connected"
-      : readyState === WebSocket.CONNECTING
-      ? "connecting"
-      : "disconnected";
-
   const sendIfOpen = useCallback(
     (obj: unknown) => {
       if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
     },
     [ws]
   );
+  const callStatus =
+    readyState === WebSocket.OPEN
+      ? "connected"
+      : readyState === WebSocket.CONNECTING
+        ? "connecting"
+        : "disconnected";
 
   return (
     <div className="h-screen bg-white flex flex-col">
